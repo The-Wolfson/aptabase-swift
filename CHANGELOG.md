@@ -1,3 +1,7 @@
+## Unreleased
+
+* Add error reporting with `trackError(error, fatal: Bool)` and dedicated `/api/v0/error` dispatching with retry/drop semantics.
+
 ## 0.3.11
 
 * Reverts previous change which caused RELEASE data not to show up

@@ -66,6 +66,14 @@ public class Aptabase: NSObject {
         enqueueEvent(eventName, with: codable)
     }
 
+    /// Track an error or exception.
+    /// - Parameters:
+    ///   - error: The error to track.
+    ///   - fatal: Mark as fatal if the app cannot recover.
+    public func trackError(_ error: Error, fatal: Bool = false) {
+        client?.trackError(error, fatal: fatal)
+    }
+
     /// Initializes the client with given App Key.
     /// - Parameter appKey: The App Key to use.
     @objc public func initialize(appKey: String) {
@@ -90,6 +98,14 @@ public class Aptabase: NSObject {
         }
 
         enqueueEvent(eventName, with: codable)
+    }
+
+    /// Track an error or exception.
+    /// - Parameters:
+    ///   - error: The error to track.
+    ///   - fatal: Mark as fatal if the app cannot recover.
+    @objc public func trackError(_ error: NSError, fatal: Bool = false) {
+        client?.trackError(error, fatal: fatal)
     }
 
     /// Forces all queued events to be sent to the server

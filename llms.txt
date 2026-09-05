@@ -116,6 +116,30 @@ To force-send queued events immediately:
 Aptabase.shared.flush()
 ```
 
+## Track Errors
+
+> Error reporting is in beta. Reports appear on the `Errors` page of your Aptabase dashboard.
+
+Use `trackError` to report handled errors:
+
+```swift
+do {
+    try someWork()
+} catch {
+    Aptabase.shared.trackError(error) // severity: error
+}
+```
+
+For unrecoverable errors:
+
+```swift
+Aptabase.shared.trackError(error, fatal: true) // severity: fatal
+```
+
+- Reports include error type, message, stack trace, severity, and capture kind
+- Reports are sent to the dedicated error endpoint with retry on transient failures
+- Error quotas are separate from event quotas
+
 ## Platform Notes
 
 - **Supported platforms**: iOS, macOS, watchOS (7.0+), tvOS, visionOS

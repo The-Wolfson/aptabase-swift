@@ -9,6 +9,7 @@ class AptabaseClient {
     private var lastTouched = Date()
     private var flushTimer: Timer?
     private let dispatcher: EventDispatcher
+    private let errorDispatcher: ErrorDispatcher
     private let env: EnvironmentInfo
     private let flushInterval: Double
     private var pauseFlushTimer: Bool = false
@@ -18,6 +19,7 @@ class AptabaseClient {
         self.env = env
 
         dispatcher = EventDispatcher(appKey: appKey, baseUrl: baseUrl, env: env)
+        errorDispatcher = ErrorDispatcher(appKey: appKey, baseUrl: baseUrl, env: env)
     }
 
     public func trackEvent(_ eventName: String, with props: [String: AnyCodableValue] = [:]) {
@@ -44,6 +46,29 @@ class AptabaseClient {
         dispatcher.enqueue(evt)
     }
 
+    public func trackError(_ error: Error, fatal: Bool = false) {
+        let severity: ErrorSeverity = fatal ? .fatal : .error
+        let kind: ErrorKind = fatal ? .crash : .handled
+        trackErrorInternal(error, severity: severity, kind: kind)
+    }
+
+    public func trackErrorInternal(_ error: Error, severity: ErrorSeverity, kind: ErrorKind) {
+        let report = ErrorReport.build(
+            from: error,
+            severity: severity,
+            kind: kind,
+            sessionId: evalSessionId(),
+            sdkVersion: AptabaseClient.sdkVersion,
+            env: env
+        )
+
+        errorDispatcher.enqueue(report)
+
+        Task {
+            await self.errorDispatcher.flush()
+        }
+    }
+
     public func startPolling() {
         stopPolling()
 
@@ -62,6 +87,7 @@ class AptabaseClient {
 
     public func flush() async {
         await dispatcher.flush()
+        await errorDispatcher.flush()
     }
     
     private static func newSessionId() -> String {
