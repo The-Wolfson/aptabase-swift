@@ -23,14 +23,8 @@ class AptabaseClient {
     }
 
     public func trackEvent(_ eventName: String, with props: [String: AnyCodableValue] = [:]) {
-        let now = Date()
-        if lastTouched.distance(to: now) > AptabaseClient.sessionTimeout {
-            sessionId = AptabaseClient.newSessionId()
-        }
-        lastTouched = now
-
         let evt = Event(timestamp: Date(),
-                        sessionId: sessionId,
+                        sessionId: evalSessionId(),
                         eventName: eventName,
                         systemProps: Event.SystemProps(
                             isDebug: env.isDebug,
@@ -94,6 +88,15 @@ class AptabaseClient {
         let epochInSeconds = UInt64(Date().timeIntervalSince1970)
         let random = UInt64.random(in: 0...99999999)
         return String(epochInSeconds * 100000000 + random)
+    }
+
+    private func evalSessionId() -> String {
+        let now = Date()
+        if lastTouched.distance(to: now) > AptabaseClient.sessionTimeout {
+            sessionId = AptabaseClient.newSessionId()
+        }
+        lastTouched = now
+        return sessionId
     }
 
     @objc private func timerFlushSync() {
