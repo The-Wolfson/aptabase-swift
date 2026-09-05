@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 class ErrorDispatcher {
     private var reports = ConcurrentQueue<ErrorReport>()

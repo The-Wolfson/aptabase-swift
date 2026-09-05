@@ -91,7 +91,7 @@ struct EnvironmentInfo {
         }
         #endif
 
-        if let simulatorModelIdentifier = ProcessInfo().environment["SIMULATOR_MODEL_IDENTIFIER"] {
+        if let simulatorModelIdentifier = ProcessInfo.processInfo.environment["SIMULATOR_MODEL_IDENTIFIER"] {
             return simulatorModelIdentifier
         } else {
             var systemInfo = utsname()
