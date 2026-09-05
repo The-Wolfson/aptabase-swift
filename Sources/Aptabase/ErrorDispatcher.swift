@@ -3,8 +3,9 @@ import Foundation
 import FoundationNetworking
 #endif
 
-class ErrorDispatcher {
-    private var reports = ConcurrentQueue<ErrorReport>()
+class ErrorDispatcher: PayloadDispatcher {
+    let payloadQueue = ConcurrentQueue<ErrorReport>()
+    let maximumBatchSize = 1
     private let headers: [String: String]
     private let apiUrl: URL
     private let session: URLSessionProtocol
@@ -21,37 +22,19 @@ class ErrorDispatcher {
     }
 
     func enqueue(_ report: ErrorReport) {
-        if reports.count >= maximumQueueSize {
+        if payloadQueue.count >= maximumQueueSize {
             debugPrint("Aptabase: Error report queue is full. Dropping report.")
             return
         }
 
-        reports.enqueue(report)
+        payloadQueue.enqueue(report)
     }
 
-    func flush() async {
-        if reports.isEmpty {
+    func send(_ payloads: [ErrorReport]) async throws {
+        guard let report = payloads.first else {
             return
         }
 
-        var failedReports: [ErrorReport] = []
-        while !reports.isEmpty {
-            guard let report = reports.dequeue() else {
-                continue
-            }
-
-            let settled = await sendReport(report)
-            if !settled {
-                failedReports.append(report)
-            }
-        }
-
-        if !failedReports.isEmpty {
-            reports.enqueue(contentsOf: failedReports)
-        }
-    }
-
-    private func sendReport(_ report: ErrorReport) async -> Bool {
         do {
             let body = try encoder.encode(report)
 
@@ -70,19 +53,19 @@ class ErrorDispatcher {
             let reason = "\(statusCode) \(responseText)"
             if statusCode == 403 {
                 debugPrint("Aptabase: Error report rejected because of \(reason). Will not retry.")
-                return true
+                return
             }
 
             if statusCode == 408 || statusCode == 429 || statusCode >= 500 {
                 debugPrint("Aptabase: Failed to send error report because of \(reason). Will retry later.")
-                return false
+                throw NSError(domain: "AptabaseError", code: statusCode, userInfo: ["reason": reason])
             }
 
             debugPrint("Aptabase: Failed to send error report because of \(reason). Will not retry.")
-            return true
+            return
         } catch {
             debugPrint("Aptabase: Failed to send error report. Reason: \(error)")
-            return false
+            throw error
         }
     }
 

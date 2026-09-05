@@ -57,10 +57,6 @@ class AptabaseClient {
         )
 
         errorDispatcher.enqueue(report)
-
-        Task {
-            await self.errorDispatcher.flush()
-        }
     }
 
     public func startPolling() {

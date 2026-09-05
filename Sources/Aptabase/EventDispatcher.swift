@@ -28,9 +28,9 @@ protocol URLSessionProtocol {
 
 extension URLSession: URLSessionProtocol {}
 
-public class EventDispatcher {
-    private var events = ConcurrentQueue<Event>()
-    private let maximumBatchSize = 25
+public class EventDispatcher: PayloadDispatcher {
+    let payloadQueue = ConcurrentQueue<Event>()
+    let maximumBatchSize = 25
     private let headers: [String: String]
     private let apiUrl: URL
     private let session: URLSessionProtocol
@@ -45,41 +45,13 @@ public class EventDispatcher {
         ]
     }
 
-    func enqueue(_ newEvent: Event) {
-        events.enqueue(newEvent)
-    }
-
-    func enqueue(_ newEvents: [Event]) {
-        events.enqueue(contentsOf: newEvents)
-    }
-
-    func flush() async {
-        if events.isEmpty {
-            return
-        }
-
-        var failedEvents: [Event] = []
-        while !events.isEmpty {
-            let eventsToSend = events.dequeue(count: maximumBatchSize)
-            do {
-                try await sendEvents(eventsToSend)
-            } catch {
-                failedEvents.append(contentsOf: eventsToSend)
-            }
-        }
-
-        if !failedEvents.isEmpty {
-            enqueue(failedEvents)
-        }
-    }
-
-    private func sendEvents(_ events: [Event]) async throws {
-        if events.isEmpty {
+    func send(_ payloads: [Event]) async throws {
+        if payloads.isEmpty {
             return
         }
 
         do {
-            let body = try encoder.encode(events)
+            let body = try encoder.encode(payloads)
 
             var request = URLRequest(url: apiUrl)
             request.httpMethod = "POST"
@@ -96,13 +68,13 @@ public class EventDispatcher {
             let reason = "\(statusCode) \(responseText)"
 
             if statusCode < 500 {
-                debugPrint("Aptabase: Failed to send \(events.count) events because of \(reason). Will not retry.")
+                debugPrint("Aptabase: Failed to send \(payloads.count) events because of \(reason). Will not retry.")
                 return
             }
 
             throw NSError(domain: "AptabaseError", code: statusCode, userInfo: ["reason": reason])
         } catch {
-            debugPrint("Aptabase: Failed to send \(events.count) events. Reason: \(error)")
+            debugPrint("Aptabase: Failed to send \(payloads.count) events. Reason: \(error)")
             throw error
         }
     }
